@@ -46,8 +46,8 @@ void ChHashTable<T>::Insert(unsigned key, const T& data)
 			while (SLL.pHead == nullptr)
 			{
 				Node* currentNode = SLL.pHead;
-				SLL.pHead = SLL.pHead->pNext;
-				SLL.pHead->pNext = nullptr;
+				SLL.pHead = currentNode->pNext;
+				currentNode->pNext = nullptr;
 				--SLL.size;
 				container[Hash(currentNode->key)].AddNodeToList(currentNode);
 			}
@@ -201,25 +201,25 @@ void ChHashTable<T>::SinglyLinkedList::AddNodeToList(Node* node)
 template <typename T>
 void ChHashTable<T>::SinglyLinkedList::Delete(unsigned key, unsigned& count)
 {
-	if(pHead == nullptr)
+	if (pHead == nullptr)
 	{
 		return;
 	}
-
+	
 	++count;// I need to do this because of the increasment of probe
 	if (pHead->key == key)
 	{
 		Node* targetNode = pHead;
 		pHead = targetNode->pNext;
-		delete pHead;
+		delete targetNode;
 		--size;
 		return;
 	}
 
-	for(Node* currentNode = pHead; currentNode->pNext != nullptr; currentNode = currentNode->pNext)
+	for (Node* currentNode = pHead; currentNode->pNext != nullptr; currentNode = currentNode->pNext)
 	{
 		++count;// I need to do this because of the increasment of probe
-		if(currentNode->pNext->key == key)
+		if (currentNode->pNext->key == key)
 		{
 			Node* targetNode = currentNode->pNext;
 			currentNode->pNext = targetNode->pNext;

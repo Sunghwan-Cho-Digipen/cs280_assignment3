@@ -419,7 +419,7 @@ void TestClear()
 
 int main()
 {
-	int test_num = 9;
+	int test_num = 13;
 #ifndef _MSC_VER
 	std::cin >> test_num;
 #endif
