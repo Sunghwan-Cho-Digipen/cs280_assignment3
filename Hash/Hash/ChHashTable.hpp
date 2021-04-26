@@ -5,16 +5,18 @@ written consent of DigiPen Institute of Technology is prohibited.
 
 File Name: ChHashTable.hpp
 Project: CS280 Assignment 3
-Author: 
-Created: 
+Author: Kevin Wright, Sunghwan Cho
+Created: 04/26/2021
 ******************************************************************/
 #pragma once
 
 #include "ChHashTable.h"
+#include <cmath>
 
 template <typename T>
 ChHashTable<T>::ChHashTable(unsigned initialTableSize, double maxLoadFactor, double growthFactor)
-	: stats(HashStats(initialTableSize)), initialTableSize(initialTableSize), maxLoadFactor(maxLoadFactor), growthFactor(growthFactor)
+	: container(new SinglyLinkedList[initialTableSize]), stats(HashStats(initialTableSize)), initialTableSize(initialTableSize),
+	maxLoadFactor(maxLoadFactor), growthFactor(growthFactor)
 {
 	
 }
@@ -29,31 +31,84 @@ ChHashTable<T>::~ChHashTable()
 template <typename T>
 void ChHashTable<T>::Insert(unsigned key, const T& data)
 {
-	
+	const double LOAD_FACTOR = static_cast<double>(++stats.count) / static_cast<double>(stats.tableSize);
+	if (LOAD_FACTOR > maxLoadFactor)
+	{
+		SinglyLinkedList* legacyContainer = container;
+
+		const unsigned TOTAL_SIZE = stats.tableSize;
+		unsigned new_table_size = static_cast<unsigned>(std::ceil(TOTAL_SIZE * growthFactor));
+		stats.tableSize = new_table_size;
+		container = new SinglyLinkedList[new_table_size];
+		for (unsigned i = 0; i < TOTAL_SIZE; i++)
+		{
+			SinglyLinkedList& list = legacyContainer[i];
+			while (list.pHead == nullptr)
+			{
+				Node* currentNode = legacyContainer[i].pHead;
+				legacyContainer[i].pHead = legacyContainer[i].pHead->pNext;
+				legacyContainer[i].pHead->pNext = nullptr;
+				--legacyContainer[i].size;
+				container[Hash(currentNode->key)].AddNodeToList(currentNode);
+			}
+		}
+		++stats.expansions;
+		delete[] legacyContainer; 
+	}
+	SinglyLinkedList& list = container[Hash(key)];
+	stats.probes += list.GetSize();
+	list.CreateAndAddNode(key, data);
+	++stats.allocations;
 }
 
 template <typename T>
 void ChHashTable<T>::Remove(unsigned key)
 {
-	
+	SinglyLinkedList& SLL = container[Hash(key)];
+	unsigned count = 0;
+	const int ORIGINAL_LIST_SIZE = SLL.GetSize();
+	SLL.Delete(key, count);
+	stats.probes += count;
+	const int CHANGED_LIST_SIZE = SLL.GetSize();
+	if (ORIGINAL_LIST_SIZE == CHANGED_LIST_SIZE)
+	{
+		std::string string = "Hash Key: " + std::to_string(key) + " not found";
+		throw HashTableException(string);
+	}
+	--stats.count;
 }
 
 template <typename T>
 void ChHashTable<T>::Clear()
 {
-	
+	const int TOTAL_SIZE = stats.tableSize;
+	for(int i = 0; i < TOTAL_SIZE; ++i)
+	{
+		container[i].Clear();
+	}
+	stats.count = 0;
 }
 
 template <typename T>
 const T& ChHashTable<T>::operator[](unsigned key)
 {
+	unsigned count = 0;
+	Node* targetNode = container[Hash(key)].Find(key, count);
+	stats.probes += count;
+
+	if(targetNode == nullptr)
+	{
+		std::string string = "Hash Key: " + std::to_string(key) + " not found";
+		throw HashTableException(string);
+	}
 	
-}
+	return targetNode->data;
+} 
 
 template <typename T>
 unsigned ChHashTable<T>::Hash(unsigned key) const
-{
-	
+{ 
+	return key % stats.tableSize;
 }
 
 template <typename T>
@@ -67,10 +122,7 @@ void ChHashTable<T>::DumpTable()
 	{
 		std::cout << "Slot: " << std::setw(3) << i;
 		
-        /*Loop You hash table going through each node of the chain*/
-        {
-			std::cout << " --> " << /*Output the hash key*/;
-		}
+		container[i].PrintAll();
 		std::cout << std::endl;
 	}
 	std::cout << std::endl;
@@ -88,21 +140,140 @@ void ChHashTable<T>::DumpStats()
 }
 
 template <typename T>
-void ChHashTable<T>::SinglyLinkedList::Add(const T& data)
+ChHashTable<T>::SinglyLinkedList::~SinglyLinkedList()
 {
-	Node* newNode = new Node(data, pTail);
-	pTail->pNext = newNode;
-	pTail = newNode;
+	Clear();
 }
 
 template <typename T>
-void ChHashTable<T>::SinglyLinkedList::Delete(const T& data)
+typename ChHashTable<T>::Node* ChHashTable<T>::SinglyLinkedList::Find(unsigned Key, unsigned& count)
 {
-	Node* targetNode = Find(data);
+	for (Node* currentNode = pHead; currentNode->pNext != nullptr; currentNode = currentNode->pNext)
+	{
+		++count; // I need to do this because of the increasment of probe
+		if (currentNode->key == Key)
+		{
+			return currentNode;
+		}
+	}
+
+	return nullptr;
+}
+
+
+template <typename T>
+void ChHashTable<T>::SinglyLinkedList::CreateAndAddNode(unsigned key, const T& data)
+{
+	if (DoesKeyMatches(key) == true)
+	{
+		std::string string = "Hash Key: " + std::to_string(key) + " already exists";
+		throw HashTableException(string);
+	}
+	
+	if(pHead == nullptr)
+	{
+		pHead = new Node(data, key);
+		++size;
+		return;
+	}
+	
+	Node* newNode = new Node(data, key);
+	pHead->pNext = newNode;
+	pHead = newNode;
+	++size;
+}
+
+template <typename T>
+void ChHashTable<T>::SinglyLinkedList::AddNodeToList(Node* node)
+{
+	if(pHead == nullptr)
+	{
+		pHead = node;
+		++size;
+		return;
+	}
+
+	node->pNext = pHead;
+	pHead = node;
+	++size;
+}
+
+template <typename T>
+void ChHashTable<T>::SinglyLinkedList::Delete(unsigned key, unsigned& count)
+{
+	if(pHead == nullptr)
+	{
+		return;
+	}
+
+	++count;// I need to do this because of the increasment of probe
+	if (pHead->key == key)
+	{
+		Node* targetNode = pHead;
+		pHead = targetNode->pNext;
+		delete pHead;
+		--size;
+		return;
+	}
+
+	for(Node* currentNode = pHead; currentNode->pNext != nullptr; currentNode = currentNode->pNext)
+	{
+		++count;// I need to do this because of the increasment of probe
+		if(currentNode->pNext->key == key)
+		{
+			Node* targetNode = currentNode->pNext;
+			currentNode->pNext = targetNode->pNext;
+			delete targetNode;
+			--size;
+			return;
+		}
+	}
 }
 
 template <typename T>
 void ChHashTable<T>::SinglyLinkedList::Clear()
 {
-	
+	Node* iterator = pHead;
+	while(iterator != nullptr)
+	{
+		Node* nextNode = iterator->pNext;
+		delete iterator;
+		iterator = nextNode;
+	}
+	pHead = nullptr;
+	size = 0;
+}
+
+template <typename T>
+void ChHashTable<T>::SinglyLinkedList::PrintAll()
+{
+	for (Node* currentNode = pHead; currentNode != nullptr; currentNode = currentNode->pNext)
+	{
+		std::cout << " --> " << currentNode->key;
+	}
+}
+
+template <typename T>
+int ChHashTable<T>::SinglyLinkedList::GetSize()
+{
+	return size;
+}
+
+template <typename T>
+bool ChHashTable<T>::SinglyLinkedList::DoesKeyMatches(unsigned key)
+{
+	if(pHead == nullptr)
+	{
+		return false;
+	}
+
+	for(Node* currentNode = pHead; currentNode->pNext != nullptr; currentNode = currentNode->pNext)
+	{
+		if(currentNode->key == key)
+		{
+			return true;
+		}
+	}
+
+	return false;
 }

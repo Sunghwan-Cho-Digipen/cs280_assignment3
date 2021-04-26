@@ -5,8 +5,8 @@ written consent of DigiPen Institute of Technology is prohibited.
 
 File Name: ChHashTable.h
 Project: CS280 Assignment 3
-Author: 
-Created: 
+Author: Kevin Wright, Sunghwan Cho
+Created: 04/26/2021
 ******************************************************************/
 #pragma once
 
@@ -44,25 +44,33 @@ private:
 		unsigned allocations;// Number of nodes created
 	};
 	
-	// You will need to create your own link list nodes (I would suggest singly because it's easier and less overhead, less chance for bugs)
-	// Your private data can be however you like 
+	struct Node
+	{
+		Node(T data, unsigned key, Node* pNext = nullptr) : data(data), key(key), pNext(pNext) {}
+		T data;
+		unsigned key;
+		Node* pNext;
+	};
+	
 	struct SinglyLinkedList
 	{
-		struct Node
-		{
-			Node(T data, Node* pPrev = nullptr, Node* pNext = nullptr) : data(data), pPrev(pPrev), pNext(pNext) {}
-			T data;
-			Node* pNext;
-		};
+	public:
 
-		SinglyLinkedList(Node* pHead = nullptr) : pHead(pHead), pTail(pHead) {};
-
-		void Add(const T& data);
-		void Delete(const T& data);
+		SinglyLinkedList(Node* pHead = nullptr) : pHead(pHead) {};
+		~SinglyLinkedList();
+		
+		Node* Find(unsigned Key, unsigned& count);
+		void CreateAndAddNode(unsigned key, const T& data); // This is used until loadFactor > maxLoadFactor
+		void AddNodeToList(Node* node); // This is used in re allocation
+		void Delete(unsigned key, unsigned& count);
 		void Clear();
+		void PrintAll();
+		int GetSize();
+		bool DoesKeyMatches(unsigned key);
+
 		
 		Node* pHead;
-		Node* pTail;
+		int size = 0;
 	};
 
 	SinglyLinkedList* container;
