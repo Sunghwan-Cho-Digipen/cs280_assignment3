@@ -43,7 +43,7 @@ void ChHashTable<T>::Insert(unsigned key, const T& data)
 		for (unsigned i = 0; i < TOTAL_SIZE; ++i)
 		{
 			SinglyLinkedList& SLL = legacyContainer[i];
-			while (SLL.pHead == nullptr)
+			while (SLL.pHead != nullptr)
 			{
 				Node* currentNode = SLL.pHead;
 				SLL.pHead = currentNode->pNext;
