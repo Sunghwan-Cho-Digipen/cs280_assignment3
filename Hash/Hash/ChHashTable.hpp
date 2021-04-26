@@ -15,8 +15,9 @@ Created: 04/26/2021
 
 template <typename T>
 ChHashTable<T>::ChHashTable(unsigned initialTableSize, double maxLoadFactor, double growthFactor)
-	: container(new SinglyLinkedList[initialTableSize]), stats(HashStats(initialTableSize)), initialTableSize(initialTableSize),
-	maxLoadFactor(maxLoadFactor), growthFactor(growthFactor)
+	: container(new SinglyLinkedList[initialTableSize]), stats(HashStats(initialTableSize)),
+	initialTableSize(initialTableSize), maxLoadFactor(maxLoadFactor),
+	growthFactor(growthFactor)
 {
 	
 }
@@ -35,29 +36,28 @@ void ChHashTable<T>::Insert(unsigned key, const T& data)
 	if (LOAD_FACTOR > maxLoadFactor)
 	{
 		SinglyLinkedList* legacyContainer = container;
-
 		const unsigned TOTAL_SIZE = stats.tableSize;
-		unsigned new_table_size = static_cast<unsigned>(std::ceil(TOTAL_SIZE * growthFactor));
-		stats.tableSize = new_table_size;
-		container = new SinglyLinkedList[new_table_size];
-		for (unsigned i = 0; i < TOTAL_SIZE; i++)
+		const unsigned NEW_TABLE_SIZE = static_cast<unsigned>(std::ceil(TOTAL_SIZE * growthFactor));
+		stats.tableSize = NEW_TABLE_SIZE;
+		container = new SinglyLinkedList[NEW_TABLE_SIZE];
+		for (unsigned i = 0; i < TOTAL_SIZE; ++i)
 		{
-			SinglyLinkedList& list = legacyContainer[i];
-			while (list.pHead == nullptr)
+			SinglyLinkedList& SLL = legacyContainer[i];
+			while (SLL.pHead == nullptr)
 			{
-				Node* currentNode = legacyContainer[i].pHead;
-				legacyContainer[i].pHead = legacyContainer[i].pHead->pNext;
-				legacyContainer[i].pHead->pNext = nullptr;
-				--legacyContainer[i].size;
+				Node* currentNode = SLL.pHead;
+				SLL.pHead = SLL.pHead->pNext;
+				SLL.pHead->pNext = nullptr;
+				--SLL.size;
 				container[Hash(currentNode->key)].AddNodeToList(currentNode);
 			}
 		}
 		++stats.expansions;
 		delete[] legacyContainer; 
 	}
-	SinglyLinkedList& list = container[Hash(key)];
-	stats.probes += list.GetSize();
-	list.CreateAndAddNode(key, data);
+	SinglyLinkedList& SLL = container[Hash(key)];
+	stats.probes += SLL.GetSize();
+	SLL.CreateAndAddNode(key, data);
 	++stats.allocations;
 }
 
@@ -148,7 +148,7 @@ ChHashTable<T>::SinglyLinkedList::~SinglyLinkedList()
 template <typename T>
 typename ChHashTable<T>::Node* ChHashTable<T>::SinglyLinkedList::Find(unsigned Key, unsigned& count)
 {
-	for (Node* currentNode = pHead; currentNode->pNext != nullptr; currentNode = currentNode->pNext)
+	for (Node* currentNode = pHead; currentNode != nullptr; currentNode = currentNode->pNext)
 	{
 		++count; // I need to do this because of the increasment of probe
 		if (currentNode->key == Key)
@@ -178,7 +178,7 @@ void ChHashTable<T>::SinglyLinkedList::CreateAndAddNode(unsigned key, const T& d
 	}
 	
 	Node* newNode = new Node(data, key);
-	pHead->pNext = newNode;
+	newNode -> pNext = pHead;
 	pHead = newNode;
 	++size;
 }
@@ -233,12 +233,12 @@ void ChHashTable<T>::SinglyLinkedList::Delete(unsigned key, unsigned& count)
 template <typename T>
 void ChHashTable<T>::SinglyLinkedList::Clear()
 {
-	Node* iterator = pHead;
-	while(iterator != nullptr)
+	Node* currentNode = pHead;
+	while(currentNode != nullptr)
 	{
-		Node* nextNode = iterator->pNext;
-		delete iterator;
-		iterator = nextNode;
+		Node* nextNode = currentNode->pNext;
+		delete currentNode;
+		currentNode = nextNode;
 	}
 	pHead = nullptr;
 	size = 0;
@@ -253,11 +253,12 @@ void ChHashTable<T>::SinglyLinkedList::PrintAll()
 	}
 }
 
-template <typename T>
+template<typename T>
 int ChHashTable<T>::SinglyLinkedList::GetSize()
 {
 	return size;
 }
+
 
 template <typename T>
 bool ChHashTable<T>::SinglyLinkedList::DoesKeyMatches(unsigned key)
@@ -267,7 +268,7 @@ bool ChHashTable<T>::SinglyLinkedList::DoesKeyMatches(unsigned key)
 		return false;
 	}
 
-	for(Node* currentNode = pHead; currentNode->pNext != nullptr; currentNode = currentNode->pNext)
+	for(Node* currentNode = pHead; currentNode != nullptr; currentNode = currentNode->pNext)
 	{
 		if(currentNode->key == key)
 		{
