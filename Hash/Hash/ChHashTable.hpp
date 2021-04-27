@@ -12,6 +12,7 @@ Created: 04/26/2021
 
 #include "ChHashTable.h"
 #include <cmath>
+#include <iostream>
 
 template <typename T>
 ChHashTable<T>::ChHashTable(unsigned initialTableSize, double maxLoadFactor, double growthFactor)
@@ -170,17 +171,8 @@ void ChHashTable<T>::SinglyLinkedList::CreateAndAddNode(unsigned key, const T& d
 		throw HashTableException(string);
 	}
 	
-	if(pHead == nullptr)
-	{
-		pHead = new Node(data, key);
-		++size;
-		return;
-	}
-	
 	Node* newNode = new Node(data, key);
-	newNode -> pNext = pHead;
-	pHead = newNode;
-	++size;
+	AddNodeToList(newNode);
 }
 
 template <typename T>
